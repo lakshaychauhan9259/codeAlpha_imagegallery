@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumière — Image Gallery</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1714;
+    --ink2: #3d3830;
+    --ink3: #7a7269;
+    --parchment: #f5f0e8;
+    --parchment2: #ede7d8;
+    --parchment3: #e2dace;
+    --accent: #c4855a;
+    --accent2: #8b5e3c;
+    --gold: #b8943f;
+    --white: #fdfaf5;
+    --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--parchment);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grain texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.5;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 3rem 4rem 2rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--parchment3);
+  }
+
+  .wordmark {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.4rem;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+  }
+
+  .wordmark em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .tagline {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--ink3);
+    text-transform: uppercase;
+  }
+
+  /* ── Filter Bar ── */
+  .filter-bar {
+    padding: 1.5rem 4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--parchment3);
+    background: var(--white);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .filter-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    margin-right: 0.75rem;
+  }
+
+  .filter-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    padding: 0.35rem 1rem;
+    border: 1px solid var(--parchment3);
+    background: transparent;
+    color: var(--ink3);
+    cursor: pointer;
+    transition: var(--transition);
+    text-transform: lowercase;
+    border-radius: 0;
+  }
+
+  .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .filter-btn.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--white);
+  }
+
+  .view-toggle {
+    margin-left: auto;
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .view-btn {
+    background: none;
+    border: 1px solid var(--parchment3);
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink3);
+    transition: var(--transition);
+    font-size: 0.85rem;
+  }
+
+  .view-btn.active, .view-btn:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+    background: var(--parchment2);
+  }
+
+  /* ── Gallery Grid ── */
+  .gallery-wrap {
+    padding: 2.5rem 4rem 4rem;
+  }
+
+  .gallery-count {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    margin-bottom: 1.5rem;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .gallery.list-view {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  /* ── Gallery Card ── */
+  .card {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    background: var(--parchment2);
+    border: 1px solid transparent;
+    transition: border-color var(--transition), transform var(--transition);
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+  }
+
+  .card.list-view {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--parchment3);
+    border-left: none; border-right: none; border-top: none;
+    transform: none !important;
+  }
+
+  .card.list-view:hover {
+    background: var(--white);
+    border-color: var(--parchment3);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Image container */
+  .card-img-wrap {
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    position: relative;
+  }
+
+  .card.list-view .card-img-wrap {
+    width: 100px;
+    height: 70px;
+    aspect-ratio: unset;
+    flex-shrink: 0;
+  }
+
+  .card-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1), filter 0.4s ease;
+    filter: saturate(0.9);
+  }
+
+  .card:hover .card-img-wrap img {
+    transform: scale(1.06);
+    filter: saturate(1.05);
+  }
+
+  /* Overlay */
+  .card-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(26,23,20,0.72) 0%, transparent 55%);
+    opacity: 0;
+    transition: opacity var(--transition);
+    display: flex;
+    align-items: flex-end;
+    padding: 1rem;
+  }
+
+  .card:hover .card-overlay {
+    opacity: 1;
+  }
+
+  .card.list-view .card-overlay { display: none; }
+
+  .overlay-expand {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(253,250,245,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 1rem;
+    transition: background var(--transition);
+  }
+
+  .overlay-expand:hover { background: rgba(253,250,245,0.15); }
+
+  /* Card info */
+  .card-info {
+    padding: 0.85rem 1rem;
+  }
+
+  .card.list-view .card-info {
+    padding: 0;
+    flex: 1;
+  }
+
+  .card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: var(--ink);
+    margin-bottom: 0.25rem;
+  }
+
+  .card-meta {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--ink3);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .card-tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    background: var(--parchment3);
+    color: var(--ink2);
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* ── CSS Filters ── */
+  [data-filter="warm"] img { filter: saturate(1.2) sepia(0.15); }
+  [data-filter="cool"] img { filter: saturate(0.8) hue-rotate(15deg); }
+  [data-filter="mono"] img { filter: grayscale(100%) contrast(1.05); }
+  [data-filter="vivid"] img { filter: saturate(1.5) contrast(1.05); }
+  [data-filter="fade"] img { filter: saturate(0.6) brightness(1.1) contrast(0.9); }
+
+  .card:hover [data-filter="warm"] img, .card:hover [data-filter="cool"] img,
+  .card:hover [data-filter="mono"] img, .card:hover [data-filter="vivid"] img,
+  .card:hover [data-filter="fade"] img { filter: saturate(1.05); }
+
+  /* Active filter from toolbar */
+  .gallery[data-tone="warm"] .card-img-wrap img   { filter: saturate(1.3) sepia(0.2) !important; }
+  .gallery[data-tone="cool"] .card-img-wrap img   { filter: saturate(0.75) hue-rotate(20deg) brightness(1.05) !important; }
+  .gallery[data-tone="mono"] .card-img-wrap img   { filter: grayscale(100%) contrast(1.08) !important; }
+  .gallery[data-tone="vivid"] .card-img-wrap img  { filter: saturate(1.6) contrast(1.1) !important; }
+  .gallery[data-tone="fade"] .card-img-wrap img   { filter: saturate(0.5) brightness(1.15) contrast(0.88) !important; }
+
+  /* ── Lightbox ── */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .lightbox.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .lb-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 17, 14, 0.92);
+    backdrop-filter: blur(6px);
+  }
+
+  .lb-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: stretch;
+    max-width: min(90vw, 1100px);
+    max-height: 90vh;
+    width: 100%;
+    background: var(--ink);
+    transform: scale(0.96);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .lightbox.open .lb-inner { transform: scale(1); }
+
+  .lb-img-wrap {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    min-height: 400px;
+  }
+
+  .lb-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    transition: opacity 0.25s ease;
+  }
+
+  .lb-img-wrap img.switching { opacity: 0; }
+
+  .lb-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid rgba(255,255,255,0.08);
+    background: rgba(26,23,20,0.7);
+  }
+
+  .lb-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    background: rgba(253,250,245,0.08);
+    border: 1px solid rgba(253,250,245,0.15);
+    color: var(--white);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition);
+    z-index: 2;
+  }
+
+  .lb-close:hover { background: rgba(253,250,245,0.15); }
+
+  .lb-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    font-weight: 300;
+    color: var(--white);
+    line-height: 1.3;
+    margin-bottom: 0.5rem;
+  }
+
+  .lb-cat {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+  }
+
+  .lb-desc {
+    font-size: 0.72rem;
+    color: rgba(253,250,245,0.55);
+    line-height: 1.8;
+    flex: 1;
+  }
+
+  .lb-counter {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: rgba(253,250,245,0.35);
+    margin-bottom: 1rem;
+  }
+
+  .lb-nav {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .lb-nav button {
+    flex: 1;
+    padding: 0.6rem;
+    background: rgba(253,250,245,0.05);
+    border: 1px solid rgba(253,250,245,0.12);
+    color: var(--white);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: lowercase;
+    transition: background var(--transition), border-color var(--transition);
+  }
+
+  .lb-nav button:hover {
+    background: rgba(196,133,90,0.2);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Thumbnails strip */
+  .lb-thumbs {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .lb-thumbs::-webkit-scrollbar { display: none; }
+
+  .lb-thumb {
+    width: 44px;
+    height: 36px;
+    flex-shrink: 0;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: border-color var(--transition), opacity var(--transition);
+    opacity: 0.5;
+  }
+
+  .lb-thumb.active { border-color: var(--accent); opacity: 1; }
+  .lb-thumb:hover { opacity: 0.85; }
+
+  .lb-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* ── Keyboard hint ── */
+  .kb-hint {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.58rem;
+    letter-spacing: 0.15em;
+    color: rgba(253,250,245,0.2);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ── No results ── */
+  .no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink3);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    header, .filter-bar, .gallery-wrap { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .gallery { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .lb-inner { flex-direction: column; max-height: 95vh; }
+    .lb-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 1rem; padding: 1rem 1.25rem; }
+    .lb-title { font-size: 1.1rem; margin-bottom: 0; }
+    .lb-desc { display: none; }
+    .lb-thumbs { display: none; }
+    .lb-nav { margin-top: 0; }
+    .lb-counter { margin-bottom: 0; }
+  }
+
+  @media (max-width: 600px) {
+    header { flex-direction: column; gap: 0.5rem; padding-top: 2rem; }
+    .gallery { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    .wordmark { font-size: 1.8rem; }
+    .filter-bar { padding: 1rem 1.5rem; gap: 0.4rem; }
+    .filter-btn { padding: 0.3rem 0.75rem; font-size: 0.62rem; }
+  }
+
+  @media (max-width: 400px) {
+    .gallery { grid-template-columns: 1fr; }
+  }
+
+  /* Hidden state for filtered cards */
+  .card[hidden] { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Lumi<em>è</em>re</div>
+  <span class="tagline">A curated image gallery</span>
+</header>
+
+<div class="filter-bar" id="filterBar">
+  <span class="filter-label">Category</span>
+  <button class="filter-btn active" data-category="all">all</button>
+  <button class="filter-btn" data-category="nature">nature</button>
+  <button class="filter-btn" data-category="architecture">architecture</button>
+  <button class="filter-btn" data-category="portrait">portrait</button>
+  <button class="filter-btn" data-category="abstract">abstract</button>
+  <button class="filter-btn" data-category="travel">travel</button>
+
+  <span class="filter-label" style="margin-left:1rem;">Tone</span>
+  <button class="filter-btn" data-tone="none">none</button>
+  <button class="filter-btn" data-tone="warm">warm</button>
+  <button class="filter-btn" data-tone="cool">cool</button>
+  <button class="filter-btn" data-tone="mono">mono</button>
+  <button class="filter-btn" data-tone="vivid">vivid</button>
+  <button class="filter-btn" data-tone="fade">fade</button>
+
+  <div class="view-toggle">
+    <button class="view-btn active" id="gridBtn" title="Grid view">⊞</button>
+    <button class="view-btn" id="listBtn" title="List view">☰</button>
+  </div>
+</div>
+
+<div class="gallery-wrap">
+  <p class="gallery-count" id="galleryCount">showing 18 images</p>
+  <div class="gallery" id="gallery"></div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
+  <div class="lb-backdrop" id="lbBackdrop"></div>
+  <div class="lb-inner">
+    <div class="lb-img-wrap">
+      <img id="lbImg" src="" alt="">
+      <button class="lb-close" id="lbClose" aria-label="Close">✕</button>
+    </div>
+    <div class="lb-sidebar">
+      <p class="lb-counter" id="lbCounter">01 / 18</p>
+      <h2 class="lb-title" id="lbTitle">—</h2>
+      <p class="lb-cat" id="lbCat">—</p>
+      <p class="lb-desc" id="lbDesc">—</p>
+      <div class="lb-thumbs" id="lbThumbs"></div>
+      <div class="lb-nav">
+        <button id="lbPrev">← prev</button>
+        <button id="lbNext">next →</button>
+      </div>
+    </div>
+  </div>
+  <span class="kb-hint">← → arrow keys to navigate · esc to close</span>
+</div>
+
+<script>
+const images = [
+  { id:1,  title:"Morning Mist", category:"nature",       src:"https://media.istockphoto.com/id/588355606/photo/suns-rays-in-fog-through-branches-of-tree.jpg?s=612x612&w=0&k=20&c=UUYowMFTzfy8hSdY62wBYvsgYOJ1Z91pICQ_0XEOLj4=",  desc:"Soft light filters through ancient pines as mist rises from the valley floor at dawn." },
+  { id:2,  title:"Facade #7",   category:"architecture",  src:"https://picsum.photos/seed/lumiere2/800/600",  desc:"Modernist concrete geometry meets the midday sun, casting precise angular shadows." },
+  { id:3,  title:"Clara",       category:"portrait",      src:"https://picsum.photos/seed/lumiere3/800/600",  desc:"A quiet moment of contemplation caught in late afternoon golden light." },
+  { id:4,  title:"Drift",       category:"abstract",      src:"https://picsum.photos/seed/lumiere4/800/600",  desc:"Layers of colour and texture dissolve into one another, suggesting movement." },
+  { id:5,  title:"Santorini",   category:"travel",        src:"https://picsum.photos/seed/lumiere5/800/600",  desc:"Whitewashed domes cascade down the caldera edge in the Greek Aegean light." },
+  { id:6,  title:"Forest Path", category:"nature",        src:"https://picsum.photos/seed/lumiere6/800/600",  desc:"A winding trail disappears into old-growth woodland carpeted with ferns." },
+  { id:7,  title:"The Arch",    category:"architecture",  src:"https://picsum.photos/seed/lumiere7/800/600",  desc:"A triumphal arch frames an avenue of chestnut trees in autumnal gold." },
+  { id:8,  title:"Marisol",     category:"portrait",      src:"https://picsum.photos/seed/lumiere8/800/600",  desc:"Studio light sculpts the subject's profile against a deep charcoal backdrop." },
+  { id:9,  title:"Chromatic",   category:"abstract",      src:"https://picsum.photos/seed/lumiere9/800/600",  desc:"Pigment suspended in water creates fleeting constellations of colour." },
+  { id:10, title:"Kyoto",       category:"travel",        src:"https://picsum.photos/seed/lumiere10/800/600", desc:"Lantern-lit stone steps lead to a moss-covered shrine in the eastern hills." },
+  { id:11, title:"Storm Coast", category:"nature",        src:"https://picsum.photos/seed/lumiere11/800/600", desc:"Atlantic swells break against basalt sea-stacks under a bruised pewter sky." },
+  { id:12, title:"Grid Study",  category:"architecture",  src:"https://picsum.photos/seed/lumiere12/800/600", desc:"An aerial view of a city grid reveals the rhythm underlying urban planning." },
+  { id:13, title:"Ignacio",     category:"portrait",      src:"https://picsum.photos/seed/lumiere13/800/600", desc:"Film grain texture and warm shadows evoke the aesthetic of analogue photography." },
+  { id:14, title:"Signal",      category:"abstract",      src:"https://picsum.photos/seed/lumiere14/800/600", desc:"Long-exposure light trails trace invisible patterns through the frame." },
+  { id:15, title:"Marrakech",   category:"travel",        src:"https://picsum.photos/seed/lumiere15/800/600", desc:"Spice pyramids glow amber and scarlet in a medina souk at midday." },
+  { id:16, title:"Alpine Glow", category:"nature",        src:"https://picsum.photos/seed/lumiere16/800/600", desc:"Alpenglow turns the high peaks rose and gold in the final minutes of dusk." },
+  { id:17, title:"Brutalist",   category:"architecture",  src:"https://picsum.photos/seed/lumiere17/800/600", desc:"Raw béton brut surfaces assert their mass against a pale winter sky." },
+  { id:18, title:"Élise",       category:"portrait",      src:"https://picsum.photos/seed/lumiere18/800/600", desc:"Natural window light falls softly across the subject in candid repose." },
+];
+
+let currentCategory = 'all';
+let currentTone = 'none';
+let currentView = 'grid';
+let filteredImages = [...images];
+let lbIndex = 0;
+
+const gallery = document.getElementById('gallery');
+const lbEl    = document.getElementById('lightbox');
+const lbImg   = document.getElementById('lbImg');
+const lbTitle = document.getElementById('lbTitle');
+const lbCat   = document.getElementById('lbCat');
+const lbDesc  = document.getElementById('lbDesc');
+const lbCounter = document.getElementById('lbCounter');
+const lbThumbs  = document.getElementById('lbThumbs');
+const galleryCount = document.getElementById('galleryCount');
+
+function buildGallery() {
+  gallery.innerHTML = '';
+  filteredImages = currentCategory === 'all'
+    ? [...images]
+    : images.filter(img => img.category === currentCategory);
+
+  galleryCount.textContent = `showing ${filteredImages.length} image${filteredImages.length !== 1 ? 's' : ''}`;
+
+  if (filteredImages.length === 0) {
+    gallery.innerHTML = '<p class="no-results">no images in this category</p>';
+    return;
+  }
+
+  filteredImages.forEach((img, i) => {
+    const delay = Math.min(i * 40, 400);
+    const card = document.createElement('div');
+    card.className = 'card' + (currentView === 'list' ? ' list-view' : '');
+    card.style.animationDelay = `${delay}ms`;
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', `Open ${img.title}`);
+    card.innerHTML = `
+      <div class="card-img-wrap">
+        <img src="${img.src}" alt="${img.title}" loading="lazy">
+        ${currentView !== 'list' ? `<div class="card-overlay"><div class="overlay-expand">⤢</div></div>` : ''}
+      </div>
+      <div class="card-info">
+        <p class="card-title">${img.title}</p>
+        <div class="card-meta">
+          <span class="card-tag">${img.category}</span>
+          <span>${String(i+1).padStart(2,'0')}</span>
+        </div>
+      </div>`;
+    card.addEventListener('click', () => openLightbox(i));
+    card.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') openLightbox(i); });
+    gallery.appendChild(card);
+  });
+
+  applyTone();
+}
+
+function applyTone() {
+  gallery.dataset.tone = currentTone === 'none' ? '' : currentTone;
+}
+
+function buildThumbs() {
+  lbThumbs.innerHTML = '';
+  filteredImages.forEach((img, i) => {
+    const t = document.createElement('div');
+    t.className = 'lb-thumb' + (i === lbIndex ? ' active' : '');
+    t.innerHTML = `<img src="${img.src}" alt="${img.title}">`;
+    t.addEventListener('click', () => goToImage(i));
+    lbThumbs.appendChild(t);
+  });
+}
+
+function openLightbox(index) {
+  lbIndex = index;
+  updateLightboxContent(false);
+  buildThumbs();
+  lbEl.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  lbEl.focus();
+}
+
+function closeLightbox() {
+  lbEl.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function updateLightboxContent(animate = true) {
+  const img = filteredImages[lbIndex];
+  if (animate) {
+    lbImg.classList.add('switching');
+    setTimeout(() => {
+      lbImg.src = img.src;
+      lbImg.alt = img.title;
+      lbImg.classList.remove('switching');
+    }, 180);
+  } else {
+    lbImg.src = img.src;
+    lbImg.alt = img.title;
+  }
+  lbTitle.textContent = img.title;
+  lbCat.textContent = img.category;
+  lbDesc.textContent = img.desc;
+  lbCounter.textContent = `${String(lbIndex+1).padStart(2,'0')} / ${String(filteredImages.length).padStart(2,'0')}`;
+
+  // Update active thumb
+  document.querySelectorAll('.lb-thumb').forEach((t, i) => {
+    t.classList.toggle('active', i === lbIndex);
+    if (i === lbIndex) t.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+  });
+}
+
+function goToImage(i) {
+  lbIndex = i;
+  updateLightboxContent(true);
+}
+
+function prevImage() {
+  lbIndex = (lbIndex - 1 + filteredImages.length) % filteredImages.length;
+  updateLightboxContent(true);
+}
+
+function nextImage() {
+  lbIndex = (lbIndex + 1) % filteredImages.length;
+  updateLightboxContent(true);
+}
+
+// Category filter buttons
+document.querySelectorAll('[data-category]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-category]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCategory = btn.dataset.category;
+    buildGallery();
+  });
+});
+
+// Tone filter buttons
+document.querySelectorAll('[data-tone]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-tone]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTone = btn.dataset.tone;
+    applyTone();
+  });
+});
+
+// View toggle
+document.getElementById('gridBtn').addEventListener('click', () => {
+  if (currentView === 'grid') return;
+  currentView = 'grid';
+  document.getElementById('gridBtn').classList.add('active');
+  document.getElementById('listBtn').classList.remove('active');
+  buildGallery();
+});
+
+document.getElementById('listBtn').addEventListener('click', () => {
+  if (currentView === 'list') return;
+  currentView = 'list';
+  document.getElementById('listBtn').classList.add('active');
+  document.getElementById('gridBtn').classList.remove('active');
+  buildGallery();
+});
+
+// Lightbox controls
+document.getElementById('lbClose').addEventListener('click', closeLightbox);
+document.getElementById('lbBackdrop').addEventListener('click', closeLightbox);
+document.getElementById('lbPrev').addEventListener('click', prevImage);
+document.getElementById('lbNext').addEventListener('click', nextImage);
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (!lbEl.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') prevImage();
+  if (e.key === 'ArrowRight') nextImage();
+});
+
+// Touch/swipe support for lightbox
+let touchStartX = 0;
+lbEl.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
+lbEl.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) { dx < 0 ? nextImage() : prevImage(); }
+});
+
+// Init
+buildGallery();
+</script>
+</body>
+</html>
